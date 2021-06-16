@@ -1,0 +1,118 @@
+# GeoNetwork
+#
+# Access via "http://localhost:8080/geonetwork" (or "http://$(docker-machine ip):8080/geonetwork" if using docker-machine)
+#
+# Default user: admin
+# Default password: admin
+#
+# maintainer: "Alvaro Barcellos <alvaro.barcellos@cprm.gov.br>"
+#
+# components: geonetwork 3.10.6 + postgresql 12 + postgis 2.5 + pgadmin 4.21
+#
+# versao para uso no INDE, https://inde..gov.br
+#
+# 05/08/2020 GitHub  push version 0.5 
+
+version: '2.2'
+
+services:
+  
+    postgis:
+        build: 
+            context: ./
+            dockerfile: Dockerfile.postgis
+        image: postgis2inde
+        container_name: postgis4inde
+        restart: unless-stopped
+        stdin_open: true
+        # tty: true
+        # networks:
+        #   - inde_hosts
+        labels:
+            org.inde.component: postgis.inde
+            org.inde.instance.name: geonetwork.inde
+        ports:
+            - 5432:5432
+        volumes:
+            - dbdata:/var/lib/postgresql/data
+            - dbbackups:/pg_backups
+        env_file:
+            - ./postgis.env
+    
+    pgadmin:
+        build: 
+            context: ./
+            dockerfile: Dockerfile.pgadmin
+        image: pgadmin2inde
+        container_name: pgadmin4inde
+        restart: unless-stopped
+        stdin_open: true
+        # tty: true
+        # networks:
+        #    - inde_hosts
+        labels:
+            org.inde.component: pgadmin.inde
+            org.inde.instance.name: geonetwork.inde
+        ports:
+            - 8050:5050
+        volumes:
+            - dbbackups:/pg_backups
+            - pgadmindb:/var/lib/pgadmin
+        #environment:
+        #    PGADMIN_DEFAULT_EMAIL: admin@example.com
+        #    PGADMIN_DEFAULT_PASSWORD: admin
+        #    PGADMIN_LISTEN_ADDRESS: pgadmin
+        #    PGADMIN_LISTEN_PORT: 5050
+        env_file:
+            - ./pgadmin.env
+        depends_on:
+            - postgis
+
+    geonetwork:
+        build: 
+            context: ./
+            dockerfile: Dockerfile.geonetwork
+        image: geonetwork2inde
+        container_name: geonetwork4inde
+        restart: unless-stopped
+        stdin_open: true
+        # tty: true
+        # networks:
+        #    - inde_hosts
+        labels:
+            org.inde.component: geonetwork.inde
+            org.inde.instance.name: geonetwork.inde
+        ports:
+            - 8080:8080
+        volumes:
+            - geonetwork_datadir:/var/lib/geonetwork/_data
+        environment:
+            DATA_DIR: /var/lib/geonetwork/_data
+        env_file:
+            - ./geonetwork.env
+        depends_on:
+            - postgis
+            - pgadmin
+
+#        healthcheck:
+#             test: "curl --fail --silent --write-out 'HTTP CODE : %{http_code}\n' --output /dev/null http://127.  0.0.1:8080/geonetwork/"
+#             interval: 60s
+#             timeout: 15s
+#             retries: 3
+#             start_period: 180s
+
+
+volumes:
+    dbdata:
+        name: inde_dbdata
+    dbbackups:
+        name: inde_dbbackups
+    pgadmindb:
+        name: inde_pgadmindb
+    geonetwork_datadir:
+        name: inde_datadir
+
+networks:
+    default:
+#    inde_hosts:
+#        external: true
